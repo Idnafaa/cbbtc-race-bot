@@ -1,4 +1,4 @@
-// CBBTC range rider: a long-only, single-asset range bot for agent-fun/bars-replay/v1.
+// CBBTC range rider v2: a long-only, single-asset range bot for agent-fun/bars-replay/v1.
 //
 // Idea, in one paragraph: on the dev window one-minute cbBTC bars are mostly
 // noise (about 6 bps of standard deviation per minute) while a full round trip
@@ -7,23 +7,25 @@
 // day still swings about 1% on 4-6 hour timescales: it drifts down, rallies
 // 2.5% from trough to peak, then fades. So this bot trades the range, not the
 // noise: it buys only when the close sits within 40 bps of the lowest close of
-// the last 360 bars (6 hours), and sells when the close reaches within 20 bps
+// the last 480 bars (8 hours), and sells when the close reaches within 10 bps
 // of the highest close of the same window, with a trailing stop and a hard stop
-// as the exits of last resort. That is two to three round trips a day, each
-// sized at full equity, each expected to clear the round-trip cost by a wide
-// margin. It never shorts, never uses leverage, never reads the clock, the
-// environment or Math.random, and every comparison is exact bigint arithmetic,
-// so the same bars always give the same orders.
+// as the exits of last resort. The 8-hour window matters: the day's trough and
+// peak are 8 hours apart, so a 6-hour window kept re-anchoring mid-move and
+// sold the rally early, while the 8-hour window holds through it. That is two
+// round trips a day, each sized at full equity, each expected to clear the
+// round-trip cost by a wide margin. It never shorts, never uses leverage,
+// never reads the clock, the environment or Math.random, and every comparison
+// is exact bigint arithmetic, so the same bars always give the same orders.
 //
 // Rules (all comparisons on closes; decisions on bar k fill at bar k+1's open):
-//   - History: every close is kept; the rolling window is the last 360 closes.
+//   - History: every close is kept; the rolling window is the last 480 closes.
 //     Indicators are fed every batch, warm-up included; no order is sent while
 //     warming up.
-//   - Entry, when flat and at least 360 closes are known: the close is within
-//     40 bps above the rolling 360-bar low, and at least 30 batches have passed
+//   - Entry, when flat and at least 480 closes are known: the close is within
+//     40 bps above the rolling 480-bar low, and at least 30 batches have passed
 //     since the last exit. Buys with all cash (capped by max_weight_bps).
-//   - Exit, the whole position: the close is within 20 bps below the rolling
-//     360-bar high, or the close falls 100 bps under the highest close since
+//   - Exit, the whole position: the close is within 10 bps below the rolling
+//     480-bar high, or the close falls 100 bps under the highest close since
 //     entry (trailing stop), or the position is worth 200 bps under its cost
 //     (hard stop).
 //   - Each order caps slippage at 100 bps past the close it was decided on, so
@@ -32,12 +34,12 @@
 import { BPS, runBars, type BarsState, type BuyInput, type SellInput } from './vendor/makefun-bars.ts';
 
 const SYMBOL = 'CBBTC';
-/** Rolling window for the range, in bars (360 minutes = 6 hours). */
-const WINDOW_BARS = 360;
+/** Rolling window for the range, in bars (480 minutes = 8 hours). */
+const WINDOW_BARS = 480;
 /** Buy when the close is within this many bps above the rolling low. */
 const BUY_BAND_BPS = 40;
 /** Sell when the close is within this many bps below the rolling high. */
-const SELL_BAND_BPS = 20;
+const SELL_BAND_BPS = 10;
 /** Batches to wait after an exit before the next entry. */
 const COOLDOWN_BARS = 30;
 /** Trailing stop: exit when the close falls this far under the peak since entry, in bps. */
